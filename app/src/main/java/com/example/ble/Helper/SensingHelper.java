@@ -1,85 +1,63 @@
 package com.example.ble.Helper;
 
-import android.bluetooth.BluetoothAdapter;
-import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothGatt;
 import android.bluetooth.BluetoothGattCharacteristic;
-import android.bluetooth.BluetoothGattService;
 import android.content.Context;
+import android.content.Intent;
 import android.os.Handler;
 import android.os.Looper;
 
-import com.example.ble.DB.AppDatabase;
-import com.example.ble.DB.Entity.Sensing;
-
-import java.sql.Timestamp;
-import java.util.UUID;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-
 public class SensingHelper {
     private static SensingHelper instance;
-    private AppDatabase database;
-    private ExecutorService executorService;
     private Handler handler;
-    private String selectedSex = "남"; // 기본값 설정
-    private BluetoothGatt bluetoothGatt;
     private BluetoothGattCharacteristic characteristic;
     private String deviceMac; // MAC 주소를 저장할 변수
     private boolean isSensingActive = false; // 센싱 작업 상태 변수
-
-    private static final UUID SERVICE_UUID = UUID.fromString("4fafc201-1fb5-459e-8fcc-c5c9c331914b");
-    private static final UUID CHARACTERISTIC_UUID = UUID.fromString("beb5483e-36e1-4688-b7f5-ea07361b26a8");
+    private Context context;
 
     private SensingHelper(Context context) {
-        database = AppDatabase.getInstance(context);
-        executorService = Executors.newSingleThreadExecutor();
+        this.context = context.getApplicationContext();
         handler = new Handler(Looper.getMainLooper());
     }
 
     public static synchronized SensingHelper getInstance(Context context) {
         if (instance == null) {
-            instance = new SensingHelper(context.getApplicationContext());
+            instance = new SensingHelper(context);
         }
         return instance;
     }
 
-    public void connectToDevice(Context context, String deviceMac) {
-        this.deviceMac = deviceMac; // MAC 주소 설정
-        try {
-            BluetoothAdapter bluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
-            BluetoothDevice device = bluetoothAdapter.getRemoteDevice(deviceMac);
-            BluetoothGattCallbackHelper gattCallbackHelper = new BluetoothGattCallbackHelper(context);
-            bluetoothGatt = device.connectGatt(context, false, gattCallbackHelper);
-        } catch (SecurityException e){
-            MessageHelper.showToast(context,"기기와 연결이 끊겼습니다.");
-        }
+    public void setCharacteristic(BluetoothGattCharacteristic characteristic) {
+        this.characteristic = characteristic;
+    }
 
+    public void setDeviceMac(String deviceMac) {
+        this.deviceMac = deviceMac;
     }
 
     public void startSensing() {
-        if (bluetoothGatt != null) {
-            BluetoothGattService service = bluetoothGatt.getService(SERVICE_UUID);
-            if (service != null) {
-                characteristic = service.getCharacteristic(CHARACTERISTIC_UUID);
+        try {
+            if (characteristic != null) {
                 isSensingActive = true;
+                characteristic.setWriteType(BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT);
                 startReadingData(characteristic);
             }
+        } catch (SecurityException e) {
+            handler.post(() -> MessageHelper.showToast(context, "디바이스 연결에 실패했습니다."));
         }
     }
 
     private void startReadingData(BluetoothGattCharacteristic characteristic) {
+        handler.post(() -> MessageHelper.showLog("기록시작"));
         handler.post(new Runnable() {
-            private int sensingCount = 0;
-
             @Override
             public void run() {
-                if (sensingCount < 6000 && isSensingActive) {
+                if (isSensingActive) {
                     byte[] sensorData = readSensorDataFromCharacteristic(characteristic);
-                    Sensing sensing = processSensorData(sensorData);
-                    saveSensingData(sensing);
-                    sensingCount++;
-                    handler.postDelayed(this, 50); // 50ms 마다 실행 (초당 20번)
+                    if (sensorData != null) {
+                        processSensorData(sensorData);
+                        isSensingActive = false; // 한번만 읽기
+                    }
                 }
             }
         });
@@ -89,49 +67,34 @@ public class SensingHelper {
         return characteristic.getValue();
     }
 
-    private Sensing processSensorData(byte[] sensorData) {
-        Sensing sensing = new Sensing();
-        sensing.setDevice_mac(deviceMac); // 저장된 MAC 주소 사용
-        sensing.setMiddle_flex_sensor(sensorData[0]);
-        sensing.setMiddle_pressure_sensor(sensorData[1]);
-        sensing.setRing_flex_sensor(sensorData[2]);
-        sensing.setRing_pressure_sensor(sensorData[3]);
-        sensing.setPinky_flex_sensor(sensorData[4]);
-        sensing.setAcceleration(sensorData[5]);
-        sensing.setGyroscope(sensorData[6]);
-        sensing.setMagnetic_field(sensorData[7]);
-        sensing.setCreated_at(new Timestamp(System.currentTimeMillis())); // Timestamp 설정
-        return sensing;
+    private void processSensorData(byte[] sensorData) {
+        handler.post(() -> MessageHelper.showLog("받아오기"));
+
+        // 센서 데이터 처리
+        int middleFlexSensor = (Byte.toUnsignedInt(sensorData[0]) << 8) | Byte.toUnsignedInt(sensorData[1]);
+        int middlePressureSensor = (Byte.toUnsignedInt(sensorData[2]) << 8) | Byte.toUnsignedInt(sensorData[3]);
+        int ringFlexSensor = (Byte.toUnsignedInt(sensorData[4]) << 8) | Byte.toUnsignedInt(sensorData[5]);
+        int ringPressureSensor = (Byte.toUnsignedInt(sensorData[6]) << 8) | Byte.toUnsignedInt(sensorData[7]);
+        int pinkyFlexSensor = (Byte.toUnsignedInt(sensorData[8]) << 8) | Byte.toUnsignedInt(sensorData[9]);
+        int acceleration = (Byte.toUnsignedInt(sensorData[10]) << 8) | Byte.toUnsignedInt(sensorData[11]);
+        int gyroscope = (Byte.toUnsignedInt(sensorData[12]) << 8) | Byte.toUnsignedInt(sensorData[13]);
+        int magneticField = (Byte.toUnsignedInt(sensorData[14]) << 8) | Byte.toUnsignedInt(sensorData[15]);
+
+        // 런 액티비티로 데이터 전달
+        Intent intent = new Intent("com.example.ble.SENSOR_DATA");
+        intent.putExtra("device_mac", deviceMac);
+        intent.putExtra("middle_flex_sensor", middleFlexSensor);
+        intent.putExtra("middle_pressure_sensor", middlePressureSensor);
+        intent.putExtra("ring_flex_sensor", ringFlexSensor);
+        intent.putExtra("ring_pressure_sensor", ringPressureSensor);
+        intent.putExtra("pinky_flex_sensor", pinkyFlexSensor);
+        intent.putExtra("acceleration", acceleration);
+        intent.putExtra("gyroscope", gyroscope);
+        intent.putExtra("magnetic_field", magneticField);
+        context.sendBroadcast(intent);
     }
 
-    private void saveSensingData(Sensing sensing) {
-        executorService.execute(() -> database.sensingDao().insert(sensing));
-    }
-
-    public void resetSensingData() {
+    public void stopSensing() {
         isSensingActive = false; // 센싱 작업 중지
-        executorService.execute(() -> database.sensingDao().deleteAll());
-    }
-
-    public void closeConnection() {
-        if (bluetoothGatt != null) {
-            try {
-                bluetoothGatt.close();
-                bluetoothGatt = null;
-            }catch (SecurityException e){
-                bluetoothGatt = null;
-            }
-
-        }
-    }
-
-    // selectedSex 값을 설정하는 메서드
-    public void setSelectedSex(String sex) {
-        this.selectedSex = sex;
-    }
-
-    // selectedSex 값을 가져오는 메서드
-    public String getSelectedSex() {
-        return selectedSex;
     }
 }

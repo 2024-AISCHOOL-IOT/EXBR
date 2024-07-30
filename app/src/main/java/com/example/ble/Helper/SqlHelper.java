@@ -3,9 +3,6 @@ package com.example.ble.Helper;
 import android.content.Context;
 
 import com.example.ble.DB.AppDatabase;
-import com.example.ble.DB.Entity.Assistance;
-import com.example.ble.DB.Entity.Device;
-import com.example.ble.DB.Entity.DeepLearning;
 import com.example.ble.DB.Entity.Sensing;
 
 import java.util.List;
@@ -30,42 +27,6 @@ public class SqlHelper {
         return instance;
     }
 
-    // Assistance 관련 메서드
-    public void insertAssistance(Assistance assistance) {
-        executorService.execute(() -> database.assistanceDao().insert(assistance));
-    }
-
-    public void getAllAssistances(OnDataFetchedListener<Assistance> listener) {
-        executorService.execute(() -> {
-            List<Assistance> data = database.assistanceDao().getAll();
-            listener.onFetched(data);
-        });
-    }
-
-    // Device 관련 메서드
-    public void insertDevice(Device device) {
-        executorService.execute(() -> database.deviceDao().insert(device));
-    }
-
-    public void getAllDevices(OnDataFetchedListener<Device> listener) {
-        executorService.execute(() -> {
-            List<Device> data = database.deviceDao().getAll();
-            listener.onFetched(data);
-        });
-    }
-
-    // DeepLearning 관련 메서드
-    public void insertDeepLearning(DeepLearning deepLearning) {
-        executorService.execute(() -> database.deepLearningDao().insert(deepLearning));
-    }
-
-    public void getAllDeepLearnings(OnDataFetchedListener<DeepLearning> listener) {
-        executorService.execute(() -> {
-            List<DeepLearning> data = database.deepLearningDao().getAll();
-            listener.onFetched(data);
-        });
-    }
-
     // Sensing 관련 메서드
     public void insertSensing(Sensing sensing) {
         executorService.execute(() -> database.sensingDao().insert(sensing));
@@ -78,8 +39,23 @@ public class SqlHelper {
         });
     }
 
+    public void deleteAllSensings() {
+        executorService.execute(() -> database.sensingDao().deleteAll());
+    }
+
+    public void getSensingCount(OnDataCountListener listener) {
+        executorService.execute(() -> {
+            int count = database.sensingDao().getSensingCount();
+            listener.onCountFetched(count);
+        });
+    }
+
     // 데이터 조회 콜백 인터페이스
     public interface OnDataFetchedListener<T> {
         void onFetched(List<T> data);
+    }
+
+    public interface OnDataCountListener {
+        void onCountFetched(int count);
     }
 }

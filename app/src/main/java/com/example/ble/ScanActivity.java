@@ -1,7 +1,6 @@
 package com.example.ble;
 
 import android.bluetooth.BluetoothDevice;
-import android.content.Intent;
 import android.os.Bundle;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
@@ -54,9 +53,7 @@ public class ScanActivity extends AppCompatActivity implements ScanHelper.ScanHe
 
         devicesListView.setOnItemClickListener((parent, view, position, id) -> {
             BluetoothDevice device = deviceList.get(position);
-            Intent intent = new Intent(ScanActivity.this, LearnActivity.class);
-            intent.putExtra("device_mac", device.getAddress());
-            startActivity(intent);
+            scanHelper.connectToDevice(this, device);
         });
 
         scanHelper.startScan();
@@ -69,7 +66,7 @@ public class ScanActivity extends AppCompatActivity implements ScanHelper.ScanHe
             deviceListAdapter.add(device.getName() + "\n" + device.getAddress());
             deviceListAdapter.notifyDataSetChanged();
         } catch (SecurityException e) {
-            MessageHelper.showToast(this, "권한오류 메인페이지로 이동");
+            MessageHelper.showToast(this, "권한 오류 메인 페이지로 이동");
             finish();
         }
     }
@@ -77,5 +74,11 @@ public class ScanActivity extends AppCompatActivity implements ScanHelper.ScanHe
     @Override
     public void onScanFinished() {
         MessageHelper.showToast(this, "스캔이 완료되었습니다.");
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        scanHelper.closeConnection();
     }
 }

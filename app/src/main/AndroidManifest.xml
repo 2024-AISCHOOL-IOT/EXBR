@@ -32,6 +32,9 @@
         android:theme="@style/Theme.Ble"
         tools:targetApi="31">
         <activity
+            android:name=".DeepLearningActivity"
+            android:exported="false" />
+        <activity
             android:name=".LearnActivity"
             android:exported="false" />
         <activity

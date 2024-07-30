@@ -13,14 +13,12 @@ import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 
-import com.example.ble.Helper.BleHelper;
 import com.example.ble.Helper.PermissionHelper;
 import com.example.ble.Helper.MessageHelper;
 import com.example.ble.Helper.NavigationHelper;
 
 public class MainActivity extends AppCompatActivity {
     BluetoothAdapter bluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
-    BleHelper bleHelper;
 
     private final ActivityResultLauncher<Intent> enableBluetoothLauncher = registerForActivityResult(
             new ActivityResultContracts.StartActivityForResult(),
@@ -43,8 +41,6 @@ public class MainActivity extends AppCompatActivity {
 
         setContentView(R.layout.activity_main);
 
-        bleHelper = new BleHelper(this, enableBluetoothLauncher);
-
         // 시작 버튼 클릭 리스너 설정
         Button startButton = findViewById(R.id.start_btn);
         startButton.setOnClickListener(v -> handleStartButtonClick());
@@ -63,8 +59,8 @@ public class MainActivity extends AppCompatActivity {
             return; // 메서드 종료
         }
 
-        boolean isBluetoothReady = BleHelper.bleCheckList(this);
-        if (isBluetoothReady && bluetoothAdapter.isEnabled()) {
+        boolean isBluetoothReady = PermissionHelper.checkPermissions(this) && bluetoothAdapter.isEnabled();
+        if (isBluetoothReady) {
             NavigationHelper.navigateToScan(MainActivity.this);
         } else {
             checkPermissions();
@@ -79,17 +75,17 @@ public class MainActivity extends AppCompatActivity {
                 @Override
                 public void onPermissionsGranted() {
                     // 권한이 다 있는데 블루투스 비활성화면 활성화
-                    bleHelper.requestEnableBluetooth();
+                    requestEnableBluetooth();
                 }
 
                 @Override
                 public void onPermissionsDenied() {
                     // 권한이 거부된 경우 다이얼로그 표시
-                    BleHelper.showPermissionRationale(MainActivity.this, new PermissionHelper.PermissionCallback() {
+                    PermissionHelper.showPermissionRationale(MainActivity.this, new PermissionHelper.PermissionCallback() {
                         @Override
                         public void onPermissionsGranted() {
                             // 권한이 허용된 경우 블루투스 활성화 요청
-                            bleHelper.requestEnableBluetooth();
+                            requestEnableBluetooth();
                         }
 
                         @Override
@@ -102,7 +98,16 @@ public class MainActivity extends AppCompatActivity {
             });
         } else {
             // 권한이 있는 경우 블루투스 활성화 확인
-            bleHelper.requestEnableBluetooth();
+            requestEnableBluetooth();
+        }
+    }
+
+    private void requestEnableBluetooth() {
+        if (!bluetoothAdapter.isEnabled()) {
+            Intent enableBluetoothIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
+            enableBluetoothLauncher.launch(enableBluetoothIntent);
+        } else {
+            NavigationHelper.navigateToScan(MainActivity.this);
         }
     }
 }

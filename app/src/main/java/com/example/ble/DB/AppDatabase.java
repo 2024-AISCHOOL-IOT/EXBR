@@ -31,7 +31,7 @@ public abstract class AppDatabase extends RoomDatabase {
                 if (INSTANCE == null) {
                     INSTANCE = Room.databaseBuilder(context.getApplicationContext(),
                                     AppDatabase.class, "EXBR_DB.db")
-                            .fallbackToDestructiveMigration() // 기존 데이터를 삭제하고 새로 만듭니다.
+                            .createFromAsset("EXBR_DB.db") // 에셋 폴더의 데이터베이스 파일 사용
                             .build();
                 }
             }
