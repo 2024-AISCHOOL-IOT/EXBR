@@ -1,0 +1,9 @@
+<resources>
+    <string name="app_name">Ble</string>
+    <string name="scanning_ble">시작하기</string>
+    <string name="refresh">재시도</string>
+    <string name="start">시작</string>
+    <string name="reset">초기화</string>
+    <string name="male">남</string>
+    <string name="female">여</string>
+</resources>
