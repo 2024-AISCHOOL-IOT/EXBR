@@ -10,9 +10,12 @@ import java.util.List;
 
 @Dao
 public interface SensingDao {
+    @Insert
+    void insert(Sensing sensing);
+
     @Query("SELECT * FROM tb_sensing")
     List<Sensing> getAll();
 
-    @Insert
-    void insert(Sensing sensing);
+    @Query("DELETE FROM tb_sensing")
+    void deleteAll();
 }

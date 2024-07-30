@@ -1,6 +1,5 @@
 package com.example.ble;
 
-import android.bluetooth.BluetoothDevice;
 import android.content.Intent;
 import android.os.Bundle;
 import android.widget.Button;
@@ -54,7 +53,7 @@ public class LearnActivity extends AppCompatActivity {
     }
 
     private void resetSensingData() {
-        // 초기화 로직 구현
+        sensingHelper.resetSensingData();
     }
 
     @Override

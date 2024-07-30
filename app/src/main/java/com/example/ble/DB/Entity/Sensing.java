@@ -22,7 +22,9 @@ public class Sensing {
     public int acceleration;
     public int gyroscope;
     public int magnetic_field;
-    private long timestamp;
+    public Timestamp created_at;
+
+    // Getters and setters
 
     public int getSensing_idx() {
         return sensing_idx;
@@ -104,12 +106,11 @@ public class Sensing {
         this.magnetic_field = magnetic_field;
     }
 
-    public long getTimestamp() {
-        return timestamp;
+    public Timestamp getCreated_at() {
+        return created_at;
     }
 
-    public void setTimestamp(long timestamp) {
-        this.timestamp = timestamp;
+    public void setCreated_at(Timestamp created_at) {
+        this.created_at = created_at;
     }
 }
-

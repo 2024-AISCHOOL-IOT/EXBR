@@ -12,6 +12,7 @@ import android.os.Looper;
 import com.example.ble.DB.AppDatabase;
 import com.example.ble.DB.Entity.Sensing;
 
+import java.sql.Timestamp;
 import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -25,6 +26,7 @@ public class SensingHelper {
     private BluetoothGatt bluetoothGatt;
     private BluetoothGattCharacteristic characteristic;
     private String deviceMac; // MAC 주소를 저장할 변수
+    private boolean isSensingActive = false; // 센싱 작업 상태 변수
 
     private static final UUID SERVICE_UUID = UUID.fromString("4fafc201-1fb5-459e-8fcc-c5c9c331914b");
     private static final UUID CHARACTERISTIC_UUID = UUID.fromString("beb5483e-36e1-4688-b7f5-ea07361b26a8");
@@ -60,6 +62,7 @@ public class SensingHelper {
             BluetoothGattService service = bluetoothGatt.getService(SERVICE_UUID);
             if (service != null) {
                 characteristic = service.getCharacteristic(CHARACTERISTIC_UUID);
+                isSensingActive = true;
                 startReadingData(characteristic);
             }
         }
@@ -71,7 +74,7 @@ public class SensingHelper {
 
             @Override
             public void run() {
-                if (sensingCount < 6000) {
+                if (sensingCount < 6000 && isSensingActive) {
                     byte[] sensorData = readSensorDataFromCharacteristic(characteristic);
                     Sensing sensing = processSensorData(sensorData);
                     saveSensingData(sensing);
@@ -97,12 +100,17 @@ public class SensingHelper {
         sensing.setAcceleration(sensorData[5]);
         sensing.setGyroscope(sensorData[6]);
         sensing.setMagnetic_field(sensorData[7]);
-        sensing.setTimestamp(System.currentTimeMillis());
+        sensing.setCreated_at(new Timestamp(System.currentTimeMillis())); // Timestamp 설정
         return sensing;
     }
 
     private void saveSensingData(Sensing sensing) {
         executorService.execute(() -> database.sensingDao().insert(sensing));
+    }
+
+    public void resetSensingData() {
+        isSensingActive = false; // 센싱 작업 중지
+        executorService.execute(() -> database.sensingDao().deleteAll());
     }
 
     public void closeConnection() {
