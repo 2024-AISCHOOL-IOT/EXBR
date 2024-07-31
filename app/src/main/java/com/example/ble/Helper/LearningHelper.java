@@ -34,16 +34,6 @@ public class LearningHelper {
                 dataArray[i][3] = data.getRing_pressure_sensor();
                 dataArray[i][4] = data.getPinky_flex_sensor();
             }
-
-            // 처리한 데이터를 출력하거나 다른 작업 수행
-            for (int i = 0; i < dataArray.length; i++) {
-                System.out.println("Row " + i + ": " +
-                        dataArray[i][0] + ", " +
-                        dataArray[i][1] + ", " +
-                        dataArray[i][2] + ", " +
-                        dataArray[i][3] + ", " +
-                        dataArray[i][4]);
-            }
         });
     }
 
