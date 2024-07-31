@@ -26,6 +26,7 @@ public class DataHelper {
 
     private List<SensingData> sensorDataBatch = new ArrayList<>();
     private static final int BATCH_SIZE = 20; // 배치 크기 설정
+    private static final int SAVE_INTERVAL = 3000; // 3초마다 저장
 
     public DataHelper(Context context, String deviceAddress, String gender, ReadHelper readHelper) {
         this.context = context;
@@ -40,18 +41,21 @@ public class DataHelper {
             isReading = true;
             clearSensingTable();
             handler.post(readSensorDataRunnable);
+            handler.post(saveDataRunnable);
         }
     }
 
     public void stopLearning() {
         isReading = false;
         handler.removeCallbacks(readSensorDataRunnable);
+        handler.removeCallbacks(saveDataRunnable);
         executorService.shutdown();
     }
 
     private void clearSensingTable() {
         executorService.execute(() -> database.sensingDataDao().clear());
         sensingCount = 0;
+        sensorDataBatch.clear();
     }
 
     private Runnable readSensorDataRunnable = new Runnable() {
@@ -64,30 +68,40 @@ public class DataHelper {
         }
     };
 
+    private Runnable saveDataRunnable = new Runnable() {
+        @Override
+        public void run() {
+            if (isReading) {
+                saveDataToDatabase();
+                handler.postDelayed(this, SAVE_INTERVAL);
+            }
+        }
+    };
+
     public void saveSensorData(int[] sensorData) {
         SensingData sensingData = new SensingData(
                 sensorData[0], // middle_flex_sensor
                 sensorData[1], // middle_pressure_sensor
                 sensorData[2], // ring_flex_sensor
                 sensorData[3], // ring_pressure_sensor
-                sensorData[4], // pinky_flex_sensor
-                sensorData[5], // acceleration
-                sensorData[6], // gyroscope
-                sensorData[7]  // magnetic_field
+                sensorData[4]  // pinky_flex_sensor
         );
 
         sensorDataBatch.add(sensingData);
         sensingCount++;
 
-        if (sensorDataBatch.size() >= BATCH_SIZE) {
+        if (sensingCount >= 1000) {
+            stopLearning();
+            saveDataToDatabase();
+            startDeepLearningActivity();
+        }
+    }
+
+    private void saveDataToDatabase() {
+        if (!sensorDataBatch.isEmpty()) {
             executorService.execute(() -> {
                 database.sensingDataDao().insertAll(sensorDataBatch);
                 sensorDataBatch.clear();
-
-                if (sensingCount >= 1000) {
-                    stopLearning();
-                    startDeepLearningActivity();
-                }
             });
         }
     }
