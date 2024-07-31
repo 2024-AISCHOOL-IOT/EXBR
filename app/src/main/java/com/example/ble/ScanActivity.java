@@ -10,8 +10,8 @@ import android.widget.ListView;
 
 import androidx.appcompat.app.AppCompatActivity;
 
-import com.example.ble.Helper.BluetoothAdapterHelper;
 import com.example.ble.Helper.MsgHelper;
+import com.example.ble.Helper.ReadHelper;
 import com.example.ble.Helper.ScanHelper;
 
 import java.util.ArrayList;
@@ -19,7 +19,7 @@ import java.util.List;
 
 public class ScanActivity extends AppCompatActivity {
     private ScanHelper scanHelper;
-    private BluetoothAdapterHelper bluetoothAdapterHelper;
+    private ReadHelper readHelper;
     private ListView listView;
     private ArrayAdapter<String> adapter;
     private List<String> deviceList;
@@ -43,11 +43,9 @@ public class ScanActivity extends AppCompatActivity {
                         deviceList.add(deviceInfo);
                         adapter.notifyDataSetChanged();
                     }
-
-                }catch (SecurityException e){
-                    MsgHelper.showLog("표시실패");
+                } catch (SecurityException e) {
+                    MsgHelper.showLog("표시 실패");
                 }
-
             }
 
             @Override
@@ -56,31 +54,27 @@ public class ScanActivity extends AppCompatActivity {
             }
         });
 
-        bluetoothAdapterHelper = new BluetoothAdapterHelper(this, new BluetoothAdapterHelper.ConnectionCallback() {
+        readHelper = new ReadHelper(this, new ReadHelper.SensorDataCallback() {
             @Override
-            public void onConnected(String deviceName, String deviceAddress) {
-                Intent intent = new Intent(ScanActivity.this, SelectActivity.class);
-                intent.putExtra("DEVICE_NAME", deviceName);
-                intent.putExtra("DEVICE_ADDRESS", deviceAddress);
-                startActivity(intent);
+            public void onSensorDataReceived(int[] sensorData) {
+                // 데이터가 받아질 때 처리
+                readHelper.saveSensorData(sensorData);
             }
 
             @Override
-            public void onConnectionFailed() {
-                MsgHelper.showToast(ScanActivity.this, "기기 연결에 실패했습니다.");
-            }
-
-            @Override
-            public void onDisconnected() {
-                MsgHelper.showToast(ScanActivity.this, "기기 연결이 끊어졌습니다.");
+            public void onConnectionStateChange(String stateMessage) {
+                MsgHelper.showToast(ScanActivity.this, stateMessage);
+                if (stateMessage.contains("연결됨")) {
+                    navigateToSelectActivity(readHelper.getConnectedDeviceName(), readHelper.getConnectedDeviceAddress());
+                }
             }
         });
 
         listView.setOnItemClickListener((parent, view, position, id) -> {
             String deviceInfo = deviceList.get(position);
             String deviceAddress = deviceInfo.split(" - ")[1];
-            BluetoothDevice device = bluetoothAdapterHelper.getBluetoothAdapter().getRemoteDevice(deviceAddress);
-            bluetoothAdapterHelper.connectToDevice(this, device);
+            BluetoothDevice device = readHelper.getBluetoothAdapter().getRemoteDevice(deviceAddress);
+            readHelper.connectToDevice(this, device);
         });
 
         Button rescanButton = findViewById(R.id.rescan_button);
@@ -92,5 +86,12 @@ public class ScanActivity extends AppCompatActivity {
 
         // 초기 스캔 시작
         scanHelper.startScan();
+    }
+
+    private void navigateToSelectActivity(String deviceName, String deviceAddress) {
+        Intent intent = new Intent(ScanActivity.this, SelectActivity.class);
+        intent.putExtra("DEVICE_NAME", deviceName);
+        intent.putExtra("DEVICE_ADDRESS", deviceAddress);
+        startActivity(intent);
     }
 }

@@ -61,4 +61,11 @@ public class SelectActivity extends AppCompatActivity {
             }
         });
     }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        // Handler에서 모든 콜백 제거
+        handler.removeCallbacksAndMessages(null);
+    }
 }

@@ -34,6 +34,7 @@ public class LearningHelper {
                 dataArray[i][3] = data.getRing_pressure_sensor();
                 dataArray[i][4] = data.getPinky_flex_sensor();
             }
+            
         });
     }
 

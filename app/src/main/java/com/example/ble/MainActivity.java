@@ -16,6 +16,8 @@ import com.example.ble.Helper.MsgHelper;
 import com.example.ble.Helper.PermissionHelper;
 import com.example.ble.data.AppDatabase;
 
+import java.io.File;
+
 public class MainActivity extends AppCompatActivity {
     private final ActivityResultLauncher<Intent> enableBluetoothLauncher = registerForActivityResult(
             new ActivityResultContracts.StartActivityForResult(),
@@ -53,9 +55,18 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void initializeDatabase() {
-        // Room 데이터베이스 인스턴스 생성 및 초기화
-        AppDatabase db = AppDatabase.getDatabase(this);
-        // 필요한 초기화 작업이 있다면 여기서 수행
+        File dbFile = getApplicationContext().getDatabasePath("app_database");
+        if (dbFile.exists()) {
+            MsgHelper.showLog("데이터베이스가 이미 존재합니다. 초기화를 건너뜁니다.");
+        } else {
+            try {
+                // Room 데이터베이스 인스턴스 생성 및 초기화
+                AppDatabase db = AppDatabase.getDatabase(this);
+                MsgHelper.showLog("데이터베이스 초기화 완료");
+            } catch (Exception e) {
+                MsgHelper.showLog("데이터베이스 초기화 오류: " + e.getMessage());
+            }
+        }
     }
 
     // 버튼 클릭 시 발생 이벤트
