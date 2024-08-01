@@ -38,10 +38,12 @@ public class DataActivity extends AppCompatActivity {
     private String gender;
     private String status;
 
-    private List<SensingData> sensingDataList = new ArrayList<>();
+    private final List<SensingData> sensingDataList = new ArrayList<>();
     private int totalDataCount = 0;
     private AppDatabase database;
     private SensingDataDao sensingDataDao;
+
+    private final Object lock = new Object();  // 동기화를 위한 객체
 
     @SuppressLint("SetTextI18n")
     @Override
@@ -141,7 +143,7 @@ public class DataActivity extends AppCompatActivity {
                 }
             });
 
-            bluetoothService.setDataReceivedListener(data -> runOnUiThread(() -> handleDataReceived(data)));
+            bluetoothService.setDataReceivedListener(data -> new Thread(() -> handleDataReceived(data)).start());
 
             // 연결 상태를 갱신
             connectionStateTextView.setText(status);
@@ -160,49 +162,51 @@ public class DataActivity extends AppCompatActivity {
     };
 
     private void handleDataReceived(int[] data) {
-        // 데이터 수신 처리
-        if (data.length == 5) {
-            SensingData sensingData = new SensingData(
-                    data[0], data[1], data[2], data[3], data[4], new Timestamp(System.currentTimeMillis())
-            );
-            sensingDataList.add(sensingData);
+        synchronized (lock) {
+            // 데이터 수신 처리
+            if (data.length == 5) {
+                SensingData sensingData = new SensingData(
+                        data[0], data[1], data[2], data[3], data[4], new Timestamp(System.currentTimeMillis())
+                );
+                sensingDataList.add(sensingData);
 
-            // 40개의 데이터가 쌓이면 데이터베이스에 저장
-            if (sensingDataList.size() >= 40) {
-                new Thread(() -> {
-                    MsgHelper.showLog("DB에 저장");
-                    sensingDataDao.insertAll(sensingDataList);
-                    sensingDataList.clear();
-                    new Handler(Looper.getMainLooper()).postDelayed(() -> MsgHelper.showLog("배열 초기화 및 딜레이 대기 완료"), 50); // 50ms 딜레이 추가
-                }).start();
-            }
-
-            // 총 데이터 개수가 500개가 되면 데이터 수집 중지
-            totalDataCount += 1;
-            if (totalDataCount >= 500) {
-                // 남아있는 데이터를 모두 저장
-                new Thread(() -> {
-                    if (!sensingDataList.isEmpty()) {
-                        new Handler(Looper.getMainLooper()).postDelayed(() -> MsgHelper.showLog("마지막저장"), 50); // 50ms 딜레이 추가
+                // 40개의 데이터가 쌓이면 데이터베이스에 저장
+                if (sensingDataList.size() >= 40) {
+                    new Thread(() -> {
+                        MsgHelper.showLog("DB에 저장");
                         sensingDataDao.insertAll(sensingDataList);
-                        MsgHelper.showLog("저장 마무리");
-                    }
-                    // 데이터 수집 중지
-                    bluetoothService.stopReceivingData();
+                        sensingDataList.clear();
+                        new Handler(Looper.getMainLooper()).postDelayed(() -> MsgHelper.showLog("배열 초기화 및 딜레이 대기 완료"), 50); // 50ms 딜레이 추가
+                    }).start();
+                }
 
-                    // 딥러닝 액티비티로 이동
-                    Intent intent = new Intent(DataActivity.this, DeepLearningActivity.class);
-                    intent.putExtra("deviceName", deviceName);
-                    intent.putExtra("deviceAddress", deviceAddress);
-                    intent.putExtra("gender", gender);
-                    startActivity(intent);
-                    intent.addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP);
-                    finish();
-                }).start();
+                // 총 데이터 개수가 500개가 되면 데이터 수집 중지
+                totalDataCount += 1;
+                if (totalDataCount >= 500) {
+                    // 남아있는 데이터를 모두 저장
+                    new Thread(() -> {
+                        if (!sensingDataList.isEmpty()) {
+                            new Handler(Looper.getMainLooper()).postDelayed(() -> MsgHelper.showLog("마지막저장"), 50); // 50ms 딜레이 추가
+                            sensingDataDao.insertAll(sensingDataList);
+                            MsgHelper.showLog("저장 마무리");
+                        }
+                        // 데이터 수집 중지
+                        bluetoothService.stopReceivingData();
+
+                        // 딥러닝 액티비티로 이동
+                        Intent intent = new Intent(DataActivity.this, DeepLearningActivity.class);
+                        intent.putExtra("deviceName", deviceName);
+                        intent.putExtra("deviceAddress", deviceAddress);
+                        intent.putExtra("gender", gender);
+                        startActivity(intent);
+                        intent.addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP);
+                        finish();
+                    }).start();
+                }
+
+                // 수신된 데이터를 화면에 표시
+                runOnUiThread(() -> sensorDataTextView.setText("학습된 데이터수: " + totalDataCount + " 목표갯수: 500"));
             }
-
-            // 수신된 데이터를 화면에 표시
-            sensorDataTextView.setText("학습된 데이터수: " + totalDataCount + " 목표갯수: 500");
         }
     }
 
