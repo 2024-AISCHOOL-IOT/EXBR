@@ -1,0 +1,17 @@
+<resources>
+    <string name="app_name">Ble</string>
+    <string name="scanning_ble">스캔시작</string>
+    <string name="refresh">검색시작</string>
+    <string name="male">남자</string>
+    <string name="female">여자</string>
+    <string name="learn">학습하기</string>
+    <string name="test">임시텍스트</string>
+    <string name="learn_start">학습하기</string>
+    <string name="learn_stop">학습중지</string>
+    <string name="로고">Logo</string>
+    <string name="push_btn">버튼을 눌러 어플을 \n시작해주세요</string>
+    <string name="뒤로가기">Back</string>
+    <string name="기기연결">디바이스 연결</string>
+    <string name="device_image">Device Image</string>
+    <string name="sexguid">성별을 선택후  학습하기 \n버튼을 눌러주세요</string>
+</resources>
