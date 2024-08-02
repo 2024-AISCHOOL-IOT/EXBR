@@ -33,8 +33,9 @@ public class DeepLearningActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        EdgeToEdge.enable(this);
+
         setContentView(R.layout.activity_deep_learning);
+        EdgeToEdge.enable(this);
 
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main), (v, insets) -> {
             Insets systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
@@ -42,16 +43,23 @@ public class DeepLearningActivity extends AppCompatActivity {
             return insets;
         });
 
+        initializeViews();
+        initializeDatabase();
+    }
+
+    private void initializeViews() {
         listView = findViewById(R.id.list_view);
         sensingDataList = new ArrayList<>();
         adapter = new ArrayAdapter<>(this, android.R.layout.simple_list_item_1, sensingDataList);
         listView.setAdapter(adapter);
 
-        database = AppDatabase.getDatabase(this);
-        sensingDataDao = database.sensingDataDao();
-
         checkDataButton = findViewById(R.id.check_data_button);
         checkDataButton.setOnClickListener(v -> loadSensingData());
+    }
+
+    private void initializeDatabase() {
+        database = AppDatabase.getDatabase(this);
+        sensingDataDao = database.sensingDataDao();
     }
 
     private void loadSensingData() {

@@ -12,12 +12,16 @@ import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.ListView;
+
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 
 import com.example.ble.Helper.BleServiceHelper;
-import com.example.ble.Helper.ScanHelper;
 import com.example.ble.Helper.MsgHelper;
+import com.example.ble.Helper.PermissionHelper;
+import com.example.ble.Helper.ScanHelper;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -32,6 +36,20 @@ public class ScanActivity extends AppCompatActivity {
     private BleServiceHelper bleService;
 
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
+
+    // 블루투스 활성화를 요청하는 ActivityResultLauncher
+    private final ActivityResultLauncher<Intent> enableBluetoothLauncher = registerForActivityResult(
+            new ActivityResultContracts.StartActivityForResult(),
+            result -> {
+                if (result.getResultCode() == RESULT_OK) {
+                    // 블루투스 활성화 성공 시 스캔 시작
+                    scanHelper.startScan();
+                } else {
+                    // 블루투스 활성화 실패 시 토스트 메시지 표시
+                    MsgHelper.showToast(ScanActivity.this, "블루투스가 활성화되지 않았습니다.\n어플 사용을 위해 블루투스를 활성화 해주세요.");
+                }
+            }
+    );
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
@@ -114,6 +132,19 @@ public class ScanActivity extends AppCompatActivity {
                 }
             }
         });
+
+        // 권한 확인 및 요청
+        PermissionHelper.checkAndRequestPermissions(this, new PermissionHelper.PermissionCallback() {
+            @Override
+            public void onPermissionsGranted() {
+                scanHelper.startScan();
+            }
+
+            @Override
+            public void onPermissionsDenied() {
+                MsgHelper.showToast(ScanActivity.this, "블루투스 권한이 필요합니다.\n권한을 허용해주세요.");
+            }
+        }, enableBluetoothLauncher);
     }
 
     private void rescan() {
@@ -127,10 +158,5 @@ public class ScanActivity extends AppCompatActivity {
     protected void onPause() {
         super.onPause();
         scanHelper.stopScan();
-    }
-
-    public static void start(Context context) {
-        Intent intent = new Intent(context, ScanActivity.class);
-        context.startActivity(intent);
     }
 }

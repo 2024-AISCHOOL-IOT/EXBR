@@ -17,13 +17,16 @@ import androidx.core.view.WindowInsetsCompat;
 
 import com.example.ble.Helper.MsgHelper;
 import com.example.ble.Helper.PermissionHelper;
+import com.example.ble.data.AppDatabase;
+
+import java.io.File;
 
 public class MainActivity extends AppCompatActivity {
 
     private static final String TAG = "MainActivity";
+    private AppDatabase database;
     private Thread backgroundThread;
     private final Handler mainHandler = new Handler(Looper.getMainLooper());  // 재사용 가능한 Handler
-
 
     private final ActivityResultLauncher<Intent> enableBluetoothLauncher = registerForActivityResult(
             new ActivityResultContracts.StartActivityForResult(),
@@ -49,10 +52,13 @@ public class MainActivity extends AppCompatActivity {
         // 백그라운드 스레드 초기화
         initializeBackgroundThread();
 
+        // 데이터베이스 초기화
+        initializeDatabase();
+
         // 시작 버튼 클릭 리스너 설정
         Button startButton = findViewById(R.id.start_btn);
         startButton.setOnClickListener(v -> {
-            // 버튼 클릭 후 2초 동안 중복 클릭 방지
+            // 버튼 클릭 후 0.5초 동안 중복 클릭 방지
             startButton.setEnabled(false);
             mainHandler.postDelayed(() -> startButton.setEnabled(true), 500);
             handleStartButtonClick();
@@ -66,6 +72,9 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void initializeBackgroundThread() {
+        if (backgroundThread != null && backgroundThread.isAlive()) {
+            backgroundThread.interrupt();
+        }
         backgroundThread = new Thread(() -> {
             Log.d(TAG, "Background thread initialized");
             // 백그라운드 스레드에서 수행할 초기화 작업이 있을 경우 여기에 추가
@@ -73,8 +82,27 @@ public class MainActivity extends AppCompatActivity {
         backgroundThread.start();
     }
 
+    private void initializeDatabase() {
+        File dbFile = getApplicationContext().getDatabasePath("app_database");
+        if (!dbFile.exists()) {
+            try {
+                // Room 데이터베이스 인스턴스 생성 및 초기화
+                database = AppDatabase.getDatabase(this);
+                Log.d(TAG, "데이터베이스 초기화 완료");
+            } catch (Exception e) {
+                Log.e(TAG, "데이터베이스 초기화 오류: " + e.getMessage());
+            }
+        } else {
+            Log.d(TAG, "데이터베이스가 이미 존재합니다. 초기화를 건너뜁니다.");
+            // 데이터베이스 인스턴스 생성
+            database = AppDatabase.getDatabase(this);
+        }
+    }
+
     // 버튼 클릭 시 발생 이벤트
     private void handleStartButtonClick() {
+        initializeDatabase();
+        initializeBackgroundThread();
         // 블루투스 지원 여부 확인
         if (!PermissionHelper.isBluetoothSupported()) {
             MsgHelper.showToast(this, "블루투스를 지원하지 않는 기기 입니다.");

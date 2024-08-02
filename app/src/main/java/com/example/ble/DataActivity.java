@@ -85,20 +85,18 @@ public class DataActivity extends AppCompatActivity {
         bindService(intent, serviceConnection, Context.BIND_AUTO_CREATE);
 
         // 람다 표현식으로 변경된 OnClickListener
-        startButton.setOnClickListener(v -> handleStartButtonClick());
-
-        stopButton.setOnClickListener(v -> {
-            if (isBound && bluetoothService != null) {
-                bluetoothService.stopReceivingData();
-                clearSensingDataTable(); // 데이터베이스 초기화
-                Log.d(TAG, "학습 중지 버튼 클릭됨");
-            } else {
-                Log.d(TAG, "서비스가 아직 바인딩되지 않았습니다.");
-            }
+        startButton.setOnClickListener(v -> {
+            stopLearning();
+            handleStartButtonClick();
         });
+
+        stopButton.setOnClickListener(v -> stopLearning());
     }
 
     private void initializeBackgroundThread() {
+        if (backgroundThread != null && backgroundThread.isAlive()) {
+            backgroundThread.interrupt();
+        }
         backgroundThread = new Thread(() -> {
             Log.d(TAG, "Background thread initialized");
             // 백그라운드 스레드에서 수행할 초기화 작업이 있을 경우 여기에 추가
@@ -126,6 +124,8 @@ public class DataActivity extends AppCompatActivity {
     }
 
     private void handleStartButtonClick() {
+        initializeDatabase();
+        initializeBackgroundThread();
         Log.d(TAG, "학습 시작 버튼 클릭됨");
         if (isBound && bluetoothService != null) {
             Log.d(TAG, "센싱 데이터 받아오기 호출");
@@ -135,6 +135,16 @@ public class DataActivity extends AppCompatActivity {
             // 서비스 바인딩 재시도
             Intent intent = new Intent(this, BleServiceHelper.class);
             bindService(intent, serviceConnection, Context.BIND_AUTO_CREATE);
+        }
+    }
+
+    private void stopLearning() {
+        if (isBound && bluetoothService != null) {
+            bluetoothService.stopReceivingData();
+            clearSensingDataTable(); // 데이터베이스 초기화
+            Log.d(TAG, "학습 중지 버튼 클릭됨");
+        } else {
+            Log.d(TAG, "서비스가 아직 바인딩되지 않았습니다.");
         }
     }
 
