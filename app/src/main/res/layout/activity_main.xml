@@ -9,7 +9,7 @@
 
     <ImageView
         android:id="@+id/imageView"
-        android:layout_width="412dp"
+        android:layout_width="match_parent"
         android:layout_height="112dp"
         android:layout_marginTop="60dp"
         android:contentDescription="@string/로고"
@@ -20,6 +20,7 @@
         tools:ignore="MissingConstraints" />
 
     <TextView
+        android:id="@+id/text"
         android:layout_width="359dp"
         android:layout_height="190dp"
         android:layout_marginTop="40dp"
@@ -45,6 +46,7 @@
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintHorizontal_bias="0.498"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/text"/>
 
 </androidx.constraintlayout.widget.ConstraintLayout>

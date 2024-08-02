@@ -14,4 +14,6 @@
     <string name="기기연결">디바이스 연결</string>
     <string name="device_image">Device Image</string>
     <string name="sexguid">성별을 선택후  학습하기 \n버튼을 눌러주세요</string>
+    <string name="now_cnt">학습된 데이터수: </string>
+    <string name="end_cnt">목표 데이터수: 500</string>
 </resources>

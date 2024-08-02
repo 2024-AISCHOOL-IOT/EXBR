@@ -17,11 +17,11 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.sqlite.db.SupportSQLiteDatabase;
 
 import com.example.ble.Helper.BleServiceHelper;
-import com.example.ble.Helper.MsgHelper;
 import com.example.ble.data.AppDatabase;
 import com.example.ble.data.SensingData;
 import com.example.ble.data.SensingDataDao;
 
+import java.io.File;
 import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.List;
@@ -44,12 +44,17 @@ public class DataActivity extends AppCompatActivity {
     private SensingDataDao sensingDataDao;
 
     private final Object lock = new Object();  // 동기화를 위한 객체
+    private final Handler mainHandler = new Handler(Looper.getMainLooper());  // 재사용 가능한 Handler
+    private Thread backgroundThread;
 
     @SuppressLint("SetTextI18n")
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_data);
+
+        // 백그라운드 스레드 초기화
+        initializeBackgroundThread();
 
         deviceName = getIntent().getStringExtra("deviceName");
         deviceAddress = getIntent().getStringExtra("deviceAddress");
@@ -74,8 +79,7 @@ public class DataActivity extends AppCompatActivity {
         connectionStateTextView.setText(status);
 
         // 데이터베이스 초기화
-        database = AppDatabase.getDatabase(this);
-        sensingDataDao = database.sensingDataDao();
+        initializeDatabase();
 
         Intent intent = new Intent(this, BleServiceHelper.class);
         bindService(intent, serviceConnection, Context.BIND_AUTO_CREATE);
@@ -92,6 +96,33 @@ public class DataActivity extends AppCompatActivity {
                 Log.d(TAG, "서비스가 아직 바인딩되지 않았습니다.");
             }
         });
+    }
+
+    private void initializeBackgroundThread() {
+        backgroundThread = new Thread(() -> {
+            Log.d(TAG, "Background thread initialized");
+            // 백그라운드 스레드에서 수행할 초기화 작업이 있을 경우 여기에 추가
+        });
+        backgroundThread.start();
+    }
+
+    private void initializeDatabase() {
+        File dbFile = getApplicationContext().getDatabasePath("app_database");
+        if (!dbFile.exists()) {
+            try {
+                // Room 데이터베이스 인스턴스 생성 및 초기화
+                database = AppDatabase.getDatabase(this);
+                sensingDataDao = database.sensingDataDao();
+                Log.d(TAG, "데이터베이스 초기화 완료");
+            } catch (Exception e) {
+                Log.e(TAG, "데이터베이스 초기화 오류: " + e.getMessage());
+            }
+        } else {
+            Log.d(TAG, "데이터베이스가 이미 존재합니다. 초기화를 건너뜁니다.");
+            // 데이터베이스 인스턴스 생성
+            database = AppDatabase.getDatabase(this);
+            sensingDataDao = database.sensingDataDao();
+        }
     }
 
     private void handleStartButtonClick() {
@@ -113,6 +144,9 @@ public class DataActivity extends AppCompatActivity {
         if (isBound) {
             unbindService(serviceConnection);
             isBound = false;
+        }
+        if (backgroundThread != null && backgroundThread.isAlive()) {
+            backgroundThread.interrupt();
         }
     }
 
@@ -172,12 +206,7 @@ public class DataActivity extends AppCompatActivity {
 
                 // 40개의 데이터가 쌓이면 데이터베이스에 저장
                 if (sensingDataList.size() >= 40) {
-                    new Thread(() -> {
-                        MsgHelper.showLog("DB에 저장");
-                        sensingDataDao.insertAll(sensingDataList);
-                        sensingDataList.clear();
-                        new Handler(Looper.getMainLooper()).postDelayed(() -> MsgHelper.showLog("배열 초기화 및 딜레이 대기 완료"), 50); // 50ms 딜레이 추가
-                    }).start();
+                    new Thread(this::saveDataAndClearList).start();
                 }
 
                 // 총 데이터 개수가 500개가 되면 데이터 수집 중지
@@ -186,9 +215,7 @@ public class DataActivity extends AppCompatActivity {
                     // 남아있는 데이터를 모두 저장
                     new Thread(() -> {
                         if (!sensingDataList.isEmpty()) {
-                            new Handler(Looper.getMainLooper()).postDelayed(() -> MsgHelper.showLog("마지막저장"), 50); // 50ms 딜레이 추가
-                            sensingDataDao.insertAll(sensingDataList);
-                            MsgHelper.showLog("저장 마무리");
+                            saveDataAndClearList();
                         }
                         // 데이터 수집 중지
                         bluetoothService.stopReceivingData();
@@ -205,7 +232,10 @@ public class DataActivity extends AppCompatActivity {
                 }
 
                 // 수신된 데이터를 화면에 표시
-                runOnUiThread(() -> sensorDataTextView.setText("학습된 데이터수: " + totalDataCount + " 목표갯수: 500"));
+                runOnUiThread(() -> {
+                    String displayText = getString(R.string.now_cnt) + totalDataCount + getString(R.string.end_cnt);
+                    sensorDataTextView.setText(displayText);
+                });
             }
         }
     }
@@ -217,7 +247,16 @@ public class DataActivity extends AppCompatActivity {
             SupportSQLiteDatabase db = database.getOpenHelper().getWritableDatabase();
             db.execSQL("VACUUM");
             totalDataCount = 0;
-            Log.d(TAG, "SensingData 테이블 초기화됨");
         }).start();
+    }
+
+    private void saveDataAndClearList() {
+        try {
+            sensingDataDao.insertAll(sensingDataList);
+            sensingDataList.clear();
+            mainHandler.postDelayed(() -> {}, 50);
+        } catch (Exception e) {
+            Log.e(TAG, "Error in saveDataAndClearList", e);
+        }
     }
 }

@@ -5,6 +5,10 @@ import android.bluetooth.le.ScanResult;
 import android.content.Context;
 import android.content.Intent;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
+import android.view.View;
+import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.ListView;
@@ -26,6 +30,8 @@ public class ScanActivity extends AppCompatActivity {
     private List<String> deviceList;
     private List<ScanResult> scanResults;
     private BleServiceHelper bleService;
+
+    private final Handler mainHandler = new Handler(Looper.getMainLooper());
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
@@ -92,11 +98,20 @@ public class ScanActivity extends AppCompatActivity {
 
         rescanButton.setOnClickListener(v -> rescan());
 
-        deviceListView.setOnItemClickListener((parent, view, position, id) -> {
-            if (position < scanResults.size()) {
-                ScanResult selectedResult = scanResults.get(position);
-                BluetoothDevice device = selectedResult.getDevice();
-                bleService.connectToDeviceWithoutReceivingData(device.getAddress()); // 데이터 수신 없이 연결
+        deviceListView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+            private boolean itemClicked = false; // 중복 클릭 방지 플래그
+
+            @Override
+            public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
+                if (!itemClicked && position < scanResults.size()) {
+                    itemClicked = true; // 플래그 설정
+                    ScanResult selectedResult = scanResults.get(position);
+                    BluetoothDevice device = selectedResult.getDevice();
+                    bleService.connectToDeviceWithoutReceivingData(device.getAddress()); // 데이터 수신 없이 연결
+
+                    // 0.5초 후 중복 클릭 방지 플래그 해제
+                    mainHandler.postDelayed(() -> itemClicked = false, 500);
+                }
             }
         });
     }

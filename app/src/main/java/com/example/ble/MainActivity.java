@@ -2,6 +2,9 @@ package com.example.ble;
 
 import android.content.Intent;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
+import android.util.Log;
 import android.widget.Button;
 
 import androidx.activity.result.ActivityResultLauncher;
@@ -14,12 +17,14 @@ import androidx.core.view.WindowInsetsCompat;
 
 import com.example.ble.Helper.MsgHelper;
 import com.example.ble.Helper.PermissionHelper;
-import com.example.ble.data.AppDatabase;
-
-import java.io.File;
 
 public class MainActivity extends AppCompatActivity {
-    private AppDatabase database;
+
+    private static final String TAG = "MainActivity";
+    private Thread backgroundThread;
+    private final Handler mainHandler = new Handler(Looper.getMainLooper());  // 재사용 가능한 Handler
+
+
     private final ActivityResultLauncher<Intent> enableBluetoothLauncher = registerForActivityResult(
             new ActivityResultContracts.StartActivityForResult(),
             result -> {
@@ -41,12 +46,17 @@ public class MainActivity extends AppCompatActivity {
 
         setContentView(R.layout.activity_main);
 
-        // 데이터베이스 생성 및 초기화
-        initializeDatabase();
+        // 백그라운드 스레드 초기화
+        initializeBackgroundThread();
 
         // 시작 버튼 클릭 리스너 설정
         Button startButton = findViewById(R.id.start_btn);
-        startButton.setOnClickListener(v -> handleStartButtonClick());
+        startButton.setOnClickListener(v -> {
+            // 버튼 클릭 후 2초 동안 중복 클릭 방지
+            startButton.setEnabled(false);
+            mainHandler.postDelayed(() -> startButton.setEnabled(true), 500);
+            handleStartButtonClick();
+        });
 
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main), (v, insets) -> {
             Insets systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
@@ -55,21 +65,12 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
-    private void initializeDatabase() {
-        File dbFile = getApplicationContext().getDatabasePath("app_database");
-        if (!dbFile.exists()) {
-            try {
-                // Room 데이터베이스 인스턴스 생성 및 초기화
-                database = AppDatabase.getDatabase(this);
-                MsgHelper.showLog("데이터베이스 초기화 완료");
-            } catch (Exception e) {
-                MsgHelper.showLog("데이터베이스 초기화 오류: " + e.getMessage());
-            }
-        } else {
-            MsgHelper.showLog("데이터베이스가 이미 존재합니다. 초기화를 건너뜁니다.");
-            // 데이터베이스 인스턴스 생성
-            database = AppDatabase.getDatabase(this);
-        }
+    private void initializeBackgroundThread() {
+        backgroundThread = new Thread(() -> {
+            Log.d(TAG, "Background thread initialized");
+            // 백그라운드 스레드에서 수행할 초기화 작업이 있을 경우 여기에 추가
+        });
+        backgroundThread.start();
     }
 
     // 버튼 클릭 시 발생 이벤트
@@ -128,5 +129,13 @@ public class MainActivity extends AppCompatActivity {
         MsgHelper.showLog("스캔 액티비티로 이동");
         startActivity(intent);
         finish();
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        if (backgroundThread != null && backgroundThread.isAlive()) {
+            backgroundThread.interrupt();
+        }
     }
 }
